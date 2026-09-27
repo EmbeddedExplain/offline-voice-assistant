@@ -1,0 +1,80 @@
+# Offline voice assistant stack.
+#
+#   docker compose up -d --build                    -> text only (episode 1): gateway + ollama
+#   docker compose --profile voice up -d --build    -> full voice loop (episode 2): + whisper + piper
+#
+# Model containers sit on the `internal` network (internal: true = no route to the Internet).
+# Only the gateway joins `lan` and publishes a port, so the Core2 can reach it over Wi-Fi.
+
+name: offline-assistant
+
+services:
+  gateway:
+    build: ./gateway
+    ports:
+      - "8000:8000"
+    environment:
+      OLLAMA_URL: http://ollama:11434
+      WHISPER_URL: http://whisper:9000
+      PIPER_URL: http://piper:9001
+      LLM_MODEL: ${LLM_MODEL:-llama3.2:3b}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-80}
+      LLM_NUM_CTX: ${LLM_NUM_CTX:-2048}
+      TIMINGS_FILE: /data/timings.csv
+    volumes:
+      - ./data:/data
+    networks: [lan, internal]
+    depends_on: [ollama]
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama:/root/.ollama
+    environment:
+      # Keep the model in (V)RAM between requests, so only the very first call pays the load time.
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-30m}
+    networks: [internal]
+    restart: unless-stopped
+    # NVIDIA GPU (RTX 3050 6 GB here) via Docker Desktop's WSL2 backend.
+    # On a machine without an NVIDIA GPU, delete this block.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  whisper:
+    profiles: [voice]
+    build:
+      context: ./services/whisper
+      args:
+        WHISPER_MODEL: ${WHISPER_MODEL:-base}
+    environment:
+      WHISPER_MODEL: ${WHISPER_MODEL:-base}
+      WHISPER_DEVICE: ${WHISPER_DEVICE:-cpu}
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
+      WHISPER_LANGUAGE: ${WHISPER_LANGUAGE:-en}
+    networks: [internal]
+    restart: unless-stopped
+
+  piper:
+    profiles: [voice]
+    build:
+      context: ./services/piper
+      args:
+        PIPER_VOICE: ${PIPER_VOICE:-en_US-lessac-medium}
+    environment:
+      PIPER_VOICE: ${PIPER_VOICE:-en_US-lessac-medium}
+    networks: [internal]
+    restart: unless-stopped
+
+networks:
+  lan: {}
+  internal:
+    internal: true
+
+volumes:
+  ollama:

@@ -1,0 +1,23 @@
+{
+  // Multi-root workspace: PlatformIO only detects platformio.ini at a workspace-folder root,
+  // so the firmware gets its own folder entry.
+  "folders": [
+    { "name": "offline-assistant", "path": "." },
+    { "name": "firmware (Core2)", "path": "firmware" }
+  ],
+  "settings": {
+    "files.exclude": { "**/__pycache__": true, "**/.pio": true },
+    "python.analysis.extraPaths": ["gateway"],
+    "[python]": { "editor.formatOnSave": true, "editor.defaultFormatter": "charliermarsh.ruff" },
+    "[cpp]": { "editor.tabSize": 4 }
+  },
+  "extensions": {
+    "recommendations": [
+      "platformio.platformio-ide",
+      "ms-python.python",
+      "charliermarsh.ruff",
+      "ms-azuretools.vscode-containers",
+      "redhat.vscode-yaml"
+    ]
+  }
+}

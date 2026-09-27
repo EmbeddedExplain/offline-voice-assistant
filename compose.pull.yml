@@ -1,0 +1,8 @@
+# Temporary override: gives ollama Internet access ONLY to download models.
+# Used by scripts/pull-model.ps1, which then restarts ollama without it.
+services:
+  ollama:
+    networks: [internal, egress]
+
+networks:
+  egress: {}

@@ -1,0 +1,52 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Stack: up (text - episode 1)",
+      "type": "shell",
+      "command": "docker compose up -d --build",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Stack: up (voice - episode 2)",
+      "type": "shell",
+      "command": "docker compose --profile voice up -d --build",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Stack: down",
+      "type": "shell",
+      "command": "docker compose --profile voice down",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Stack: gateway logs",
+      "type": "shell",
+      "command": "docker compose logs -f gateway",
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Model: pull (online, then back offline)",
+      "type": "shell",
+      "command": "powershell -ExecutionPolicy Bypass -File scripts/pull-model.ps1 ${input:model}",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Test: ask the gateway",
+      "type": "shell",
+      "command": "powershell -ExecutionPolicy Bypass -File scripts/ask.ps1 \"${input:question}\"",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    { "id": "model", "type": "promptString", "description": "Ollama model", "default": "llama3.2:3b" },
+    { "id": "question", "type": "promptString", "description": "Question", "default": "What is an ESP32?" }
+  ]
+}
