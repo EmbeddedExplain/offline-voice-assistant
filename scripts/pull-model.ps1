@@ -18,7 +18,14 @@ if (-not $Model) {
 
 Write-Host "==> Starting ollama WITH Internet access to pull $Model"
 Invoke-Checked { docker compose -f docker-compose.yml -f compose.pull.yml up -d ollama }
-Invoke-Checked { docker compose exec ollama ollama pull $Model }
+# Retry: right after the container is recreated its network may not be ready yet.
+foreach ($attempt in 1..3) {
+    docker compose exec ollama ollama pull $Model
+    if ($LASTEXITCODE -eq 0) { break }
+    if ($attempt -eq 3) { throw "ollama pull $Model failed 3 times" }
+    Write-Host "==> Pull failed, retrying in 5 s ($attempt/3)"
+    Start-Sleep -Seconds 5
+}
 
 Write-Host "==> Restarting ollama on the internal (offline) network only"
 Invoke-Checked { docker compose up -d --force-recreate ollama }

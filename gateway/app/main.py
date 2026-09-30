@@ -46,6 +46,8 @@ client = httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=5.0))
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=500)
+    # Optional override, used by scripts/benchmark.ps1 to compare models (the Core2 never sends it)
+    model: str | None = Field(default=None, max_length=100)
 
 
 def ms_since(start: float) -> int:
@@ -53,7 +55,7 @@ def ms_since(start: float) -> int:
 
 
 def record_timings(row: dict) -> None:
-    row = {"timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"), "model": LLM_MODEL, **row}
+    row = {"timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"), "model": LLM_MODEL} | row
     log.info("timings %s", {k: v for k, v in row.items() if k.endswith("_ms")})
     try:
         TIMINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -67,13 +69,13 @@ def record_timings(row: dict) -> None:
         log.warning("could not write timings: %s", exc)
 
 
-async def ask_llm(question: str) -> tuple[str, dict]:
+async def ask_llm(question: str, model: str = LLM_MODEL) -> tuple[str, dict]:
     start = time.perf_counter()
     try:
         r = await client.post(
             f"{OLLAMA_URL}/api/chat",
             json={
-                "model": LLM_MODEL,
+                "model": model,
                 "stream": False,
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
@@ -105,10 +107,11 @@ async def health():
 @app.post("/ask")
 async def ask(req: AskRequest):
     start = time.perf_counter()
-    answer, timings = await ask_llm(req.question)
+    model = req.model or LLM_MODEL
+    answer, timings = await ask_llm(req.question, model)
     timings["total_ms"] = ms_since(start)
-    record_timings({"endpoint": "ask", "question": req.question, "answer": answer, **timings})
-    return {"answer": answer, "timings_ms": timings}
+    record_timings({"endpoint": "ask", "model": model, "question": req.question, "answer": answer, **timings})
+    return {"answer": answer, "model": model, "timings_ms": timings}
 
 
 @app.post("/voice")
