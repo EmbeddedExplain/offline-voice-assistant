@@ -18,9 +18,9 @@ A fully offline AI assistant: an **M5Stack Core2** (ESP32) talks over local Wi-F
 | Episode | Feature | Status |
 |---|---|---|
 | 1 | Core2 asks preset questions → answer on screen (`/ask`) | ✅ firmware + gateway |
-| 2 | Push-to-talk voice loop (`/voice`) | ✅ gateway/whisper/piper · ⏳ Core2 mic + speaker |
-| 3 | Per-stage latency, model comparison, power | ✅ timings logged to `data/timings.csv` |
-| 4 | Prove zero bytes leave the network (`tcpdump`) | ⏳ |
+| 2 | Push-to-talk voice loop (`/voice`): hold the screen, speak, release | ✅ firmware + gateway/whisper/piper |
+| 3 | Per-stage latency, model comparison, power | ✅ `data/timings.csv` + `scripts/benchmark.ps1` |
+| 4 | Prove zero bytes leave the network (`tcpdump`) | ✅ `scripts/check-isolation.ps1` |
 
 ## Requirements
 
@@ -62,7 +62,11 @@ Windows Firewall: allow inbound TCP 8000 on your *private* network so the Core2 
 - **No COM port when flashing**: install the USB driver for your Core2's chip (CH9102 or CP2104, depending on revision).
 - **Slow first answer**: normal, Ollama loads the model. It then stays loaded for `OLLAMA_KEEP_ALIVE` (30 min).
 
-Voice loop (episode 2): `docker compose --profile voice up -d --build`, then `.\scripts\voice.ps1 question.wav`.
+Voice loop (episode 2): `docker compose --profile voice up -d --build`, then `.\scripts\voice.ps1 question.wav`
+(16-bit PCM WAV). On the Core2, hold a finger on the screen, speak, release: the reply plays on the speaker.
+
+Benchmark (episode 3): `.\scripts\benchmark.ps1` measures cold and warm latency for every installed model
+and prints mean ± standard deviation. Pull extra models first, e.g. `.\scripts\pull-model.ps1 llama3.2:1b`.
 
 VS Code tasks (`Ctrl+Shift+P` → *Run Task*) wrap all of the above.
 
@@ -83,9 +87,15 @@ The `ollama`, `whisper` and `piper` containers only join the `internal` Docker n
 temporary override (`compose.pull.yml`, used by `scripts/pull-model.ps1`). Only the gateway publishes a port.
 
 **Caveat:** Docker can't publish a port from a container that is *only* on an internal network, so the
-gateway also sits on the normal `lan` network, which has Internet access. The models are isolated; the gateway
-is not, by construction. Episode 4 checks with `tcpdump` that it sends nothing out, and blocks its egress
-with a firewall rule to prove it rather than just observe it.
+gateway also sits on the normal `lan` network, which has Internet access. Two extra measures close that gap:
+
+- `dns: [127.0.0.1]` on the gateway: Docker's embedded DNS still resolves the service names, but external
+  lookups go nowhere (Docker's resolver would otherwise bypass any firewall rule).
+- `.\scripts\check-isolation.ps1 -Block` adds an iptables rule (`DOCKER-USER` chain, Docker Desktop VM) that
+  drops anything the gateway sends to a public address. It is not persistent: re-run after restarting Docker.
+
+`.\scripts\check-isolation.ps1` then tests outbound TCP and DNS from every container and captures packets
+with `tcpdump` on both Docker networks during real `/ask` and `/voice` requests (pcap files in `captures/`).
 
 ## Timing data
 
