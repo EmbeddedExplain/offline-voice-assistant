@@ -42,7 +42,7 @@ function Add-Row([string]$Model, [string]$Kind, $t) {
     $tokPerS = 0
     if ($t.llm_gen_ms -gt 0) { $tokPerS = [math]::Round($t.llm_tokens * 1000.0 / $t.llm_gen_ms, 1) }
     $row = [pscustomobject]@{
-        model = $Model; kind = $Kind; total_ms = $t.total_ms; stt_ms = $t.stt_ms; llm_ms = $t.llm_ms; tts_ms = $t.tts_ms
+        model = $Model; kind = $Kind; total_ms = $t.total_ms; upload_ms = $t.upload_ms; stt_ms = $t.stt_ms; llm_ms = $t.llm_ms; tts_ms = $t.tts_ms
         llm_load_ms = $t.llm_load_ms; llm_prompt_ms = $t.llm_prompt_ms; llm_gen_ms = $t.llm_gen_ms
         llm_tokens = $t.llm_tokens; tokens_per_s = $tokPerS
     }
@@ -87,7 +87,7 @@ $rows | Group-Object model, kind | ForEach-Object {
     [pscustomobject]@{
         model = $g[0].model; kind = $g[0].kind; n = $g.Count
         total = Stat $g.total_ms; load = Stat $g.llm_load_ms; prompt = Stat $g.llm_prompt_ms
-        stt = Stat $g.stt_ms; tts = Stat $g.tts_ms; "tok/s" = Stat $g.tokens_per_s
+        upload = Stat $g.upload_ms; stt = Stat $g.stt_ms; tts = Stat $g.tts_ms; "tok/s" = Stat $g.tokens_per_s
     }
 } | Format-Table -AutoSize | Out-String | Write-Host
 Write-Host "Raw data: $csv"

@@ -32,7 +32,7 @@ SYSTEM_PROMPT = os.getenv(
 )
 TIMINGS_FILE = Path(os.getenv("TIMINGS_FILE", "/data/timings.csv"))
 TIMING_FIELDS = [
-    "timestamp", "endpoint", "model", "stt_ms", "llm_ms", "tts_ms", "total_ms",
+    "timestamp", "endpoint", "model", "upload_ms", "stt_ms", "llm_ms", "tts_ms", "total_ms",
     "llm_load_ms", "llm_prompt_ms", "llm_gen_ms", "llm_tokens",
     "audio_in_bytes", "audio_out_bytes", "question", "answer",
 ]
@@ -59,6 +59,13 @@ def record_timings(row: dict) -> None:
     log.info("timings %s", {k: v for k, v in row.items() if k.endswith("_ms")})
     try:
         TIMINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        # Columns changed since the file was created: keep the old file aside rather than mixing layouts
+        if TIMINGS_FILE.exists():
+            with TIMINGS_FILE.open(encoding="utf-8") as f:
+                header = f.readline().strip()
+            if header != ",".join(TIMING_FIELDS):
+                stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+                TIMINGS_FILE.rename(TIMINGS_FILE.with_name(f"{TIMINGS_FILE.stem}-{stamp}.csv"))
         new_file = not TIMINGS_FILE.exists()
         with TIMINGS_FILE.open("a", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=TIMING_FIELDS, extrasaction="ignore")
@@ -117,7 +124,8 @@ async def ask(req: AskRequest):
 @app.post("/voice")
 async def voice(request: Request):
     start = time.perf_counter()
-    audio_in = await request.body()
+    audio_in = await request.body()  # arrives while the client uploads: this is the network upload time
+    upload_ms = ms_since(start)
     if len(audio_in) < 1000:
         raise HTTPException(400, "expected a WAV body")
 
@@ -144,7 +152,7 @@ async def voice(request: Request):
     audio_out = r.content
     tts_ms = ms_since(t)
 
-    timings.update(stt_ms=stt_ms, tts_ms=tts_ms, total_ms=ms_since(start))
+    timings.update(upload_ms=upload_ms, stt_ms=stt_ms, tts_ms=tts_ms, total_ms=ms_since(start))
     record_timings({
         "endpoint": "voice", "question": transcript, "answer": answer,
         "audio_in_bytes": len(audio_in), "audio_out_bytes": len(audio_out), **timings,

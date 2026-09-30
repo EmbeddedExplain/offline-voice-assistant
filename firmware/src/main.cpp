@@ -90,6 +90,7 @@ void showScreen(const String& title, const String& body, uint16_t titleColor = T
 void connectWiFi() {
     showScreen("Connecting to Wi-Fi...", WIFI_SSID, TFT_YELLOW);
     WiFi.mode(WIFI_STA);
+    WiFi.setSleep(false);  // modem sleep (on by default) slows uploads to ~55 KB/s
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     while (WiFi.status() != WL_CONNECTED) {
         delay(250);
