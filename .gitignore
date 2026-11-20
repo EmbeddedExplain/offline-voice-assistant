@@ -22,3 +22,14 @@ NOTES.md
 # Editors / OS
 .DS_Store
 Thumbs.db
+
+# Local editor settings (paths specific to one machine)
+.vscode/settings.json
+firmware/.vscode/c_cpp_properties.json
+firmware/.vscode/launch.json
+
+# Audio produced or used by the test scripts (voice.ps1 writes reply.wav)
+*.wav
+
+# Logs
+*.log
