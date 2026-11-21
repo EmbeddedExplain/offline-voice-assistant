@@ -3,7 +3,7 @@
 📺 Built episode by episode on YouTube: https://www.youtube.com/@EmbeddedExplain
 
 A fully offline AI assistant: an **M5Stack Core2** (ESP32) talks over local Wi-Fi to a PC running
-**Ollama**, **faster-whisper** and **Piper** in Docker. Nothing leaves your network — and we measure it.
+**Ollama**, **faster-whisper** and **Piper** in Docker. Once installed, no answer goes through the cloud — and we measure it.
 
 ```
 ┌──────────────┐   local Wi-Fi (HTTP)   ┌──────────────────────────────────────────┐
